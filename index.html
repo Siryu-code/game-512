@@ -1,74 +1,44 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Game 2048</title>
-  <link rel="stylesheet" href="style.css">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>2048</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800&display=swap">
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="container">
+<main class="app">
+  <h1>2048</h1>
 
-    <header>
-      <h1>2048</h1>
-      <p class="subtitle">Gabungkan angka hingga mencapai target</p>
-    </header>
-
-    <!-- Bagian pengaturan (sebelum permainan) -->
-    <section id="settings" class="panel">
-      <div class="field">
-        <label for="size-select">Ukuran papan</label>
-        <select id="size-select">
-          <option value="4">4 × 4</option>
-          <option value="6">6 × 6</option>
-          <option value="8">8 × 8</option>
-        </select>
-      </div>
-
-      <div class="field">
-        <label for="target-select">Angka target</label>
-        <select id="target-select"></select>
-      </div>
-
-      <button id="start-btn" type="button" class="btn btn-primary">Mulai Permainan</button>
-    </section>
-
-    <!-- Bagian permainan -->
-    <section id="game-section" class="hidden">
-      <div class="info">
-        <div class="info-box">
-          <span class="info-label">Target</span>
-          <span id="target-info" class="info-value">0</span>
-        </div>
-        <div class="info-box">
-          <span class="info-label">Skor</span>
-          <span id="score-info" class="info-value">0</span>
-        </div>
-      </div>
-
-      <div id="status" class="status hidden"></div>
-
-      <div id="board" class="board"></div>
-
-      <div class="controls">
-        <button id="reset-btn" type="button" class="btn">Reset</button>
-        <button id="difficulty-btn" type="button" class="btn">Atur Kesulitan</button>
-      </div>
-    </section>
-
-    <!-- Petunjuk -->
-    <section class="help">
-      <h2>Cara bermain</h2>
-      <ul>
-        <li>Geser (swipe) atau drag papan untuk menggerakkan semua ubin.</li>
-        <li>Di laptop, kamu juga bisa memakai tombol W, A, S, D.</li>
-        <li>Dua ubin dengan angka sama akan bergabung menjadi dua kali lipat.</li>
-        <li>Capai angka target untuk menang. Kalah jika tidak ada langkah tersisa.</li>
-      </ul>
-    </section>
-
+  <div class="controls">
+    <div class="target" id="target">
+      <p>Pilih target kemenangan</p>
+      <div class="chips" id="chips"></div>
+    </div>
+    <div class="actions">
+      <button class="btn primary" id="startBtn" type="button">Mulai</button>
+      <button class="btn ghost" id="restartBtn" type="button" disabled>Restart</button>
+    </div>
   </div>
 
-  <script src="script.js"></script>
+  <div class="board dim" id="board">
+    <div class="overlay" id="overlay">
+      <h2 id="ovTitle"></h2>
+      <div class="row">
+        <button class="btn primary" id="ovContinue" type="button">Lanjut main</button>
+        <button class="btn ghost" id="ovRestart" type="button">Restart</button>
+      </div>
+    </div>
+  </div>
+
+  <section class="help">
+    <p><strong>Cara bermain</strong></p>
+    <p>Geser semua kotak ke satu arah. Dua kotak berangka sama akan menyatu dan angkanya berlipat dua. Capai angka target untuk menang. Permainan berakhir kalau papan penuh dan tidak ada kotak yang bisa digerakkan.</p>
+    <p>Di komputer: tombol panah atau W A S D. Di HP: geser jari di atas papan.</p>
+  </section>
+</main>
+
+<script src="script.js"></script>
 </body>
 </html>

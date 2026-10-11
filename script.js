@@ -1,514 +1,312 @@
 (function () {
-  "use strict";
+  var SIZE = 4;
+  var TARGETS = [128, 256, 512, 1024, 2048];
+  var target = 2048;
+  var playing = false,
+    busy = false,
+    won = false,
+    continued = false;
+  var grid = [],
+    tiles = [];
 
-  var ALL_TARGETS = [
-    8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768,
-  ];
-  var MAX_TARGET_BY_SIZE = { 4: 512, 6: 8192, 8: 32768 };
-  var MIN_SWIPE_DISTANCE = 30; // piksel minimum agar dianggap swipe/drag
-
-  var game = {
-    size: 4,
-    target: 128,
-    board: [],
-    score: 0,
-    status: "setup",
-  };
-
-  var sizeSelect = document.getElementById("size-select");
-  var targetSelect = document.getElementById("target-select");
-  var startBtn = document.getElementById("start-btn");
-  var resetBtn = document.getElementById("reset-btn");
-  var difficultyBtn = document.getElementById("difficulty-btn");
-  var gameSection = document.getElementById("game-section");
   var boardEl = document.getElementById("board");
-  var targetInfo = document.getElementById("target-info");
-  var scoreInfo = document.getElementById("score-info");
-  var statusEl = document.getElementById("status");
+  var chipsEl = document.getElementById("chips");
+  var targetEl = document.getElementById("target");
+  var startBtn = document.getElementById("startBtn");
+  var restartBtn = document.getElementById("restartBtn");
+  var overlay = document.getElementById("overlay");
+  var ovTitle = document.getElementById("ovTitle");
+  var ovContinue = document.getElementById("ovContinue");
+  var ovRestart = document.getElementById("ovRestart");
 
-  function getAllowedTargets(size) {
-    var result = [];
-    var i;
-    for (i = 0; i < ALL_TARGETS.length; i++) {
-      if (ALL_TARGETS[i] <= MAX_TARGET_BY_SIZE[size]) {
-        result.push(ALL_TARGETS[i]);
+  function pct(i) {
+    return 2 + 24.5 * i + "%";
+  }
+  function place(el, r, c) {
+    el.style.left = pct(c);
+    el.style.top = pct(r);
+  }
+  function cls(v) {
+    return "tile " + (v <= 2048 ? "t" + v : "tbig");
+  }
+
+  function buildCells() {
+    var r, c, d;
+    for (r = 0; r < SIZE; r++) {
+      for (c = 0; c < SIZE; c++) {
+        d = document.createElement("div");
+        d.className = "cell";
+        place(d, r, c);
+        boardEl.insertBefore(d, overlay);
       }
     }
-    return result;
   }
 
-  function fillTargetOptions() {
-    var size = parseInt(sizeSelect.value, 10);
-    var previous = parseInt(targetSelect.value, 10);
-    var allowed = getAllowedTargets(size);
-    var keepPrevious = false;
-    var i, option;
-
-    targetSelect.options.length = 0;
-
-    for (i = 0; i < allowed.length; i++) {
-      option = document.createElement("option");
-      option.value = allowed[i];
-      option.textContent = allowed[i];
-      targetSelect.appendChild(option);
-      if (allowed[i] === previous) {
-        keepPrevious = true;
-      }
-    }
-
-    targetSelect.value = keepPrevious ? previous : allowed[allowed.length - 1];
-  }
-
-  function setSettingsLocked(locked) {
-    sizeSelect.disabled = locked;
-    targetSelect.disabled = locked;
-    startBtn.disabled = locked;
-  }
-
-  function createEmptyBoard(size) {
-    var board = [];
-    var r, c, row;
-    for (r = 0; r < size; r++) {
-      row = [];
-      for (c = 0; c < size; c++) {
-        row.push(0);
-      }
-      board.push(row);
-    }
-    return board;
-  }
-
-  function initGame(size, target) {
-    game.size = size;
-    game.target = target;
-    game.board = createEmptyBoard(size);
-    game.score = 0;
-    game.status = "playing";
-
-    spawnTile();
-    spawnTile();
-    render();
-  }
-
-  function startGame() {
-    var size = parseInt(sizeSelect.value, 10);
-    var target = parseInt(targetSelect.value, 10);
-
-    setSettingsLocked(true);
-    gameSection.classList.remove("hidden");
-    initGame(size, target);
-  }
-
-  function resetGame() {
-    initGame(game.size, game.target);
-  }
-
-  function backToSettings() {
-    game.status = "setup";
-    game.board = [];
-    game.score = 0;
-    boardEl.innerHTML = "";
-    statusEl.className = "status hidden";
-    statusEl.textContent = "";
-    gameSection.classList.add("hidden");
-    setSettingsLocked(false);
-  }
-
-  function getEmptyCells(board) {
-    var cells = [];
-    var r, c;
-    for (r = 0; r < board.length; r++) {
-      for (c = 0; c < board.length; c++) {
-        if (board[r][c] === 0) {
-          cells.push({ r: r, c: c });
-        }
-      }
-    }
-    return cells;
-  }
-
-  function spawnTile() {
-    var empty = getEmptyCells(game.board);
-    var pick;
-    if (empty.length === 0) {
-      return;
-    }
-    pick = empty[Math.floor(Math.random() * empty.length)];
-    game.board[pick.r][pick.c] = Math.random() < 0.9 ? 2 : 4;
-  }
-
-  function slideLine(line) {
-    var tiles = [];
-    var result = [];
-    var gained = 0;
-    var i = 0;
-    var merged;
-
-    for (i = 0; i < line.length; i++) {
-      if (line[i] !== 0) {
-        tiles.push(line[i]);
-      }
-    }
-
-    i = 0;
-    while (i < tiles.length) {
-      if (i + 1 < tiles.length && tiles[i] === tiles[i + 1]) {
-        merged = tiles[i] * 2;
-        result.push(merged);
-        gained += merged;
-        i += 2;
-      } else {
-        result.push(tiles[i]);
-        i += 1;
-      }
-    }
-
-    while (result.length < line.length) {
-      result.push(0);
-    }
-
-    return { line: result, score: gained };
-  }
-
-  function getCellPosition(direction, index, k, size) {
-    if (direction === "left") {
-      return { r: index, c: k };
-    }
-    if (direction === "right") {
-      return { r: index, c: size - 1 - k };
-    }
-    if (direction === "up") {
-      return { r: k, c: index };
-    }
-    return { r: size - 1 - k, c: index }; // down
-  }
-
-  function readLine(board, direction, index) {
-    var size = board.length;
-    var line = [];
-    var k, pos;
-    for (k = 0; k < size; k++) {
-      pos = getCellPosition(direction, index, k, size);
-      line.push(board[pos.r][pos.c]);
-    }
-    return line;
-  }
-
-  function writeLine(board, direction, index, line) {
-    var size = board.length;
-    var k, pos;
-    for (k = 0; k < size; k++) {
-      pos = getCellPosition(direction, index, k, size);
-      board[pos.r][pos.c] = line[k];
+  function buildChips() {
+    var i, b;
+    for (i = 0; i < TARGETS.length; i++) {
+      b = document.createElement("button");
+      b.type = "button";
+      b.className = "chip" + (TARGETS[i] === target ? " sel" : "");
+      b.textContent = TARGETS[i];
+      b.setAttribute("data-v", TARGETS[i]);
+      chipsEl.appendChild(b);
     }
   }
 
-  function linesAreEqual(a, b) {
-    var i;
-    for (i = 0; i < a.length; i++) {
-      if (a[i] !== b[i]) {
-        return false;
-      }
+  chipsEl.addEventListener("click", function (e) {
+    var v = e.target.getAttribute && e.target.getAttribute("data-v");
+    if (!v || playing) return;
+    target = parseInt(v, 10);
+    var kids = chipsEl.children,
+      i;
+    for (i = 0; i < kids.length; i++) {
+      kids[i].className =
+        "chip" + (kids[i].getAttribute("data-v") === v ? " sel" : "");
     }
-    return true;
+  });
+
+  function emptyGrid() {
+    var g = [],
+      r,
+      c;
+    for (r = 0; r < SIZE; r++) {
+      g[r] = [];
+      for (c = 0; c < SIZE; c++) g[r][c] = null;
+    }
+    return g;
   }
 
-  function moveBoard(direction) {
-    var size = game.size;
-    var moved = false;
-    var index, oldLine, result;
-
-    for (index = 0; index < size; index++) {
-      oldLine = readLine(game.board, direction, index);
-      result = slideLine(oldLine);
-
-      if (!linesAreEqual(oldLine, result.line)) {
-        moved = true;
-        writeLine(game.board, direction, index, result.line);
-      }
-      game.score += result.score;
-    }
-
-    return moved;
+  function addTile(r, c, v) {
+    var el = document.createElement("div");
+    el.className = cls(v) + " new";
+    el.textContent = v;
+    place(el, r, c);
+    boardEl.insertBefore(el, overlay);
+    var t = { r: r, c: c, v: v, el: el, merged: false };
+    grid[r][c] = t;
+    tiles.push(t);
+    return t;
   }
 
-  function getMaxTile(board) {
-    var max = 0;
-    var r, c;
-    for (r = 0; r < board.length; r++) {
-      for (c = 0; c < board.length; c++) {
-        if (board[r][c] > max) {
-          max = board[r][c];
-        }
-      }
-    }
-    return max;
+  function spawn() {
+    var free = [],
+      r,
+      c;
+    for (r = 0; r < SIZE; r++)
+      for (c = 0; c < SIZE; c++) if (!grid[r][c]) free.push([r, c]);
+    if (!free.length) return;
+    var p = free[Math.floor(Math.random() * free.length)];
+    addTile(p[0], p[1], Math.random() < 0.9 ? 2 : 4);
   }
 
-  function hasAvailableMove(board) {
-    var size = board.length;
-    var r, c, value;
-
-    for (r = 0; r < size; r++) {
-      for (c = 0; c < size; c++) {
-        value = board[r][c];
-        if (value === 0) {
+  function canMove() {
+    var r, c, v;
+    for (r = 0; r < SIZE; r++) {
+      for (c = 0; c < SIZE; c++) {
+        if (!grid[r][c]) return true;
+        v = grid[r][c].v;
+        if (c < SIZE - 1 && grid[r][c + 1] && grid[r][c + 1].v === v)
           return true;
-        }
-        if (c + 1 < size && board[r][c + 1] === value) {
+        if (r < SIZE - 1 && grid[r + 1][c] && grid[r + 1][c].v === v)
           return true;
-        }
-        if (r + 1 < size && board[r + 1][c] === value) {
-          return true;
-        }
       }
     }
     return false;
   }
 
-  function updateGameStatus() {
-    if (getMaxTile(game.board) >= game.target) {
-      game.status = "won";
-    } else if (!hasAvailableMove(game.board)) {
-      game.status = "lost";
-    }
+  function showOverlay(title, canContinue) {
+    ovTitle.textContent = title;
+    ovContinue.style.display = canContinue ? "" : "none";
+    overlay.className = "overlay show";
   }
 
-  function handleMove(direction) {
-    var moved;
-
-    if (game.status !== "playing") {
-      return;
+  function clearTiles() {
+    var i;
+    for (i = 0; i < tiles.length; i++) {
+      if (tiles[i].el.parentNode)
+        tiles[i].el.parentNode.removeChild(tiles[i].el);
     }
-
-    moved = moveBoard(direction);
-    if (!moved) {
-      return;
-    }
-
-    spawnTile();
-    updateGameStatus();
-    render();
+    tiles = [];
+    grid = emptyGrid();
   }
 
-  function getTileClass(value) {
-    if (value === 0) {
-      return "tile-empty";
-    }
-    if (value <= 2048) {
-      return "tile-" + value;
-    }
-    return "tile-high";
+  function setIdle() {
+    playing = false;
+    busy = false;
+    won = false;
+    continued = false;
+    clearTiles();
+    overlay.className = "overlay";
+    boardEl.className = "board dim";
+    targetEl.className = "target";
+    startBtn.disabled = false;
+    restartBtn.disabled = true;
   }
 
-  function getFontFactor(value) {
-    var digits = String(value).length;
-    if (digits <= 2) {
-      return 0.45;
-    }
-    if (digits === 3) {
-      return 0.38;
-    }
-    if (digits === 4) {
-      return 0.3;
-    }
-    return 0.25;
+  function start() {
+    if (playing) return;
+    clearTiles();
+    playing = true;
+    won = false;
+    continued = false;
+    boardEl.className = "board";
+    targetEl.className = "target off";
+    startBtn.disabled = true;
+    restartBtn.disabled = false;
+    spawn();
+    spawn();
   }
 
-  function renderStatus() {
-    if (game.status === "won") {
-      statusEl.textContent =
-        "Selamat! Kamu menang! Target " + game.target + " tercapai.";
-      statusEl.className = "status status-win";
-    } else if (game.status === "lost") {
-      statusEl.textContent = "Kamu kalah. Tidak ada langkah yang tersisa.";
-      statusEl.className = "status status-lose";
-    } else {
-      statusEl.textContent = "";
-      statusEl.className = "status hidden";
-    }
-  }
+  var VEC = { left: [0, -1], right: [0, 1], up: [-1, 0], down: [1, 0] };
 
-  function render() {
-    var size = game.size;
-    var cellSize, r, c, value, tile;
+  function move(dir) {
+    if (!playing || busy) return;
+    var dr = VEC[dir][0],
+      dc = VEC[dir][1];
+    var rs = [0, 1, 2, 3],
+      cs = [0, 1, 2, 3];
+    if (dr === 1) rs.reverse();
+    if (dc === 1) cs.reverse();
+    var moved = false,
+      removed = [],
+      grown = [],
+      reached = false;
+    var i, j, t, nr, nc, other;
 
-    boardEl.innerHTML = "";
-    boardEl.className = "board board-" + size;
-    boardEl.style.gridTemplateColumns = "repeat(" + size + ", 1fr)";
-    boardEl.style.gridTemplateRows = "repeat(" + size + ", 1fr)";
-
-    cellSize = boardEl.clientWidth / size;
-
-    for (r = 0; r < size; r++) {
-      for (c = 0; c < size; c++) {
-        value = game.board[r][c];
-        tile = document.createElement("div");
-        tile.className = "tile " + getTileClass(value);
-        if (value !== 0) {
-          tile.textContent = value;
-          tile.style.fontSize =
-            Math.floor(cellSize * getFontFactor(value)) + "px";
+    for (i = 0; i < rs.length; i++) {
+      for (j = 0; j < cs.length; j++) {
+        t = grid[rs[i]][cs[j]];
+        if (!t) continue;
+        nr = t.r;
+        nc = t.c;
+        while (
+          nr + dr >= 0 &&
+          nr + dr < SIZE &&
+          nc + dc >= 0 &&
+          nc + dc < SIZE &&
+          !grid[nr + dr][nc + dc]
+        ) {
+          nr += dr;
+          nc += dc;
         }
-        boardEl.appendChild(tile);
+        var fr = nr + dr,
+          fc = nc + dc;
+        other =
+          fr >= 0 && fr < SIZE && fc >= 0 && fc < SIZE ? grid[fr][fc] : null;
+        if (other && other.v === t.v && !other.merged) {
+          grid[t.r][t.c] = null;
+          other.merged = true;
+          other.v *= 2;
+          if (other.v >= target) reached = true;
+          t.r = fr;
+          t.c = fc;
+          place(t.el, fr, fc);
+          removed.push(t);
+          grown.push(other);
+          moved = true;
+        } else if (nr !== t.r || nc !== t.c) {
+          grid[t.r][t.c] = null;
+          grid[nr][nc] = t;
+          t.r = nr;
+          t.c = nc;
+          place(t.el, nr, nc);
+          moved = true;
+        }
       }
     }
+    if (!moved) return;
+    busy = true;
 
-    targetInfo.textContent = game.target;
-    scoreInfo.textContent = game.score;
-    renderStatus();
+    setTimeout(function () {
+      var k, idx;
+      for (k = 0; k < removed.length; k++) {
+        if (removed[k].el.parentNode)
+          removed[k].el.parentNode.removeChild(removed[k].el);
+        idx = tiles.indexOf(removed[k]);
+        if (idx > -1) tiles.splice(idx, 1);
+      }
+      for (k = 0; k < grown.length; k++) {
+        grown[k].el.textContent = grown[k].v;
+        grown[k].el.className = cls(grown[k].v) + " pop";
+      }
+      for (k = 0; k < tiles.length; k++) tiles[k].merged = false;
+      spawn();
+      busy = false;
+      if (reached && !continued && !won) {
+        won = true;
+        showOverlay("Kamu menang! \uD83C\uDF89", true);
+        busy = true;
+      } else if (!canMove()) {
+        showOverlay("Permainan selesai", false);
+        busy = true;
+      }
+    }, 130);
   }
 
-  var touchStart = null;
-  var mouseStart = null;
-  var lastTouchTime = 0;
+  var KEYS = {
+    ArrowLeft: "left",
+    ArrowRight: "right",
+    ArrowUp: "up",
+    ArrowDown: "down",
+    a: "left",
+    d: "right",
+    w: "up",
+    s: "down",
+    A: "left",
+    D: "right",
+    W: "up",
+    S: "down",
+  };
 
-  function handleGesture(startX, startY, endX, endY) {
-    var dx = endX - startX;
-    var dy = endY - startY;
-    var absX = Math.abs(dx);
-    var absY = Math.abs(dy);
+  document.addEventListener("keydown", function (e) {
+    var dir = KEYS[e.key];
+    if (!dir || !playing) return;
+    e.preventDefault();
+    move(dir);
+  });
 
-    if (Math.max(absX, absY) < MIN_SWIPE_DISTANCE) {
-      return;
-    }
+  var sx = 0,
+    sy = 0,
+    tracking = false;
+  boardEl.addEventListener(
+    "touchstart",
+    function (e) {
+      if (!playing || e.touches.length !== 1) return;
+      sx = e.touches[0].clientX;
+      sy = e.touches[0].clientY;
+      tracking = true;
+    },
+    { passive: true },
+  );
+  boardEl.addEventListener(
+    "touchend",
+    function (e) {
+      if (!tracking) return;
+      tracking = false;
+      var t = e.changedTouches[0];
+      var dx = t.clientX - sx,
+        dy = t.clientY - sy;
+      var ax = Math.abs(dx),
+        ay = Math.abs(dy);
+      if (Math.max(ax, ay) < 24) return;
+      if (ax > ay) move(dx > 0 ? "right" : "left");
+      else move(dy > 0 ? "down" : "up");
+    },
+    { passive: true },
+  );
 
-    if (absX > absY) {
-      handleMove(dx > 0 ? "right" : "left");
-    } else {
-      handleMove(dy > 0 ? "down" : "up");
-    }
-  }
+  startBtn.addEventListener("click", start);
+  restartBtn.addEventListener("click", setIdle);
+  ovRestart.addEventListener("click", setIdle);
+  ovContinue.addEventListener("click", function () {
+    continued = true;
+    busy = false;
+    overlay.className = "overlay";
+    if (!canMove()) showOverlay("Permainan selesai", false);
+  });
 
-  function setupTouchControls() {
-    boardEl.addEventListener(
-      "touchstart",
-      function (e) {
-        var t;
-        if (e.touches.length !== 1) {
-          touchStart = null;
-          return;
-        }
-        t = e.touches[0];
-        touchStart = { x: t.clientX, y: t.clientY };
-      },
-      false,
-    );
-
-    boardEl.addEventListener(
-      "touchmove",
-      function (e) {
-        if (touchStart) {
-          e.preventDefault();
-        }
-      },
-      false,
-    );
-
-    boardEl.addEventListener(
-      "touchend",
-      function (e) {
-        var t, start;
-        if (!touchStart) {
-          return;
-        }
-        t = e.changedTouches[0];
-        start = touchStart;
-        touchStart = null;
-        lastTouchTime = new Date().getTime();
-        handleGesture(start.x, start.y, t.clientX, t.clientY);
-        e.preventDefault();
-      },
-      false,
-    );
-
-    boardEl.addEventListener(
-      "touchcancel",
-      function () {
-        touchStart = null;
-      },
-      false,
-    );
-  }
-
-  function setupMouseControls() {
-    boardEl.addEventListener(
-      "mousedown",
-      function (e) {
-        if (new Date().getTime() - lastTouchTime < 800) {
-          return;
-        }
-        if (e.button !== 0) {
-          return;
-        }
-        mouseStart = { x: e.clientX, y: e.clientY };
-        e.preventDefault();
-      },
-      false,
-    );
-
-    document.addEventListener(
-      "mouseup",
-      function (e) {
-        var start;
-        if (!mouseStart) {
-          return;
-        }
-        start = mouseStart;
-        mouseStart = null;
-        handleGesture(start.x, start.y, e.clientX, e.clientY);
-      },
-      false,
-    );
-  }
-
-  function setupKeyboardControls() {
-    document.addEventListener(
-      "keydown",
-      function (e) {
-        var direction = null;
-
-        if (e.keyCode === 87) {
-          direction = "up";
-        } // W
-        else if (e.keyCode === 65) {
-          direction = "left";
-        } // A
-        else if (e.keyCode === 83) {
-          direction = "down";
-        } // S
-        else if (e.keyCode === 68) {
-          direction = "right";
-        } // D
-
-        if (direction !== null && game.status === "playing") {
-          e.preventDefault();
-          handleMove(direction);
-        }
-      },
-      false,
-    );
-  }
-
-  function setupUIControls() {
-    sizeSelect.addEventListener("change", fillTargetOptions, false);
-    startBtn.addEventListener("click", startGame, false);
-    resetBtn.addEventListener("click", resetGame, false);
-    difficultyBtn.addEventListener("click", backToSettings, false);
-
-    window.addEventListener(
-      "resize",
-      function () {
-        if (game.status !== "setup") {
-          render();
-        }
-      },
-      false,
-    );
-  }
-
-  setupUIControls();
-  setupTouchControls();
-  setupMouseControls();
-  setupKeyboardControls();
+  grid = emptyGrid();
+  buildCells();
+  buildChips();
 })();
