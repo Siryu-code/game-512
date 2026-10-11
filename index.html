@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Game 2048</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+
+    <header>
+      <h1>2048</h1>
+      <p class="subtitle">Gabungkan angka hingga mencapai target</p>
+    </header>
+
+    <!-- Bagian pengaturan (sebelum permainan) -->
+    <section id="settings" class="panel">
+      <div class="field">
+        <label for="size-select">Ukuran papan</label>
+        <select id="size-select">
+          <option value="4">4 × 4</option>
+          <option value="6">6 × 6</option>
+          <option value="8">8 × 8</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="target-select">Angka target</label>
+        <select id="target-select"></select>
+      </div>
+
+      <button id="start-btn" type="button" class="btn btn-primary">Mulai Permainan</button>
+    </section>
+
+    <!-- Bagian permainan -->
+    <section id="game-section" class="hidden">
+      <div class="info">
+        <div class="info-box">
+          <span class="info-label">Target</span>
+          <span id="target-info" class="info-value">0</span>
+        </div>
+        <div class="info-box">
+          <span class="info-label">Skor</span>
+          <span id="score-info" class="info-value">0</span>
+        </div>
+      </div>
+
+      <div id="status" class="status hidden"></div>
+
+      <div id="board" class="board"></div>
+
+      <div class="controls">
+        <button id="reset-btn" type="button" class="btn">Reset</button>
+        <button id="difficulty-btn" type="button" class="btn">Atur Kesulitan</button>
+      </div>
+    </section>
+
+    <!-- Petunjuk -->
+    <section class="help">
+      <h2>Cara bermain</h2>
+      <ul>
+        <li>Geser (swipe) atau drag papan untuk menggerakkan semua ubin.</li>
+        <li>Di laptop, kamu juga bisa memakai tombol W, A, S, D.</li>
+        <li>Dua ubin dengan angka sama akan bergabung menjadi dua kali lipat.</li>
+        <li>Capai angka target untuk menang. Kalah jika tidak ada langkah tersisa.</li>
+      </ul>
+    </section>
+
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
